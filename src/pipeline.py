@@ -87,12 +87,24 @@ def run(config_path: str = "configs/config.yaml") -> dict:
             c for c in train.select_dtypes(include="number").columns
             if c != target_col and set(train[c].dropna().unique()) <= {0, 1}
         ]
+        real_pos_rate = train[target_col].mean()
         for name, path in pre_built.items():
             df = pd.read_csv(path)
             # Generators output fractional values for binary columns — snap back to 0/1
             for col in binary_cols:
                 if col in df.columns:
                     df[col] = df[col].round().clip(0, 1).astype(int)
+            # Rebalance target class to match real positive rate — generators
+            # systematically under-sample the minority class (deceased patients)
+            synth_pos_rate = df[target_col].mean()
+            if abs(synth_pos_rate - real_pos_rate) > 0.01:
+                pos = df[df[target_col] == 1]
+                neg = df[df[target_col] == 0]
+                n_neg = len(neg)
+                n_pos_target = int(n_neg * real_pos_rate / (1 - real_pos_rate))
+                pos_resampled = pos.sample(n=n_pos_target, replace=len(pos) < n_pos_target, random_state=42)
+                df = pd.concat([neg, pos_resampled]).sample(frac=1, random_state=42).reset_index(drop=True)
+                print(f"  Rebalanced {name}: {synth_pos_rate*100:.1f}% → {df[target_col].mean()*100:.1f}% positive (target {real_pos_rate*100:.1f}%)")
             synth_datasets[name] = df
             print(f"  Loaded {name}: {len(df):,} rows  (snapped {len(binary_cols)} binary cols)")
     else:

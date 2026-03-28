@@ -43,15 +43,31 @@ def load_and_split(target_col: str = 'DECEASED', random_state: int = 42):
     return train_df
 
 
+LOG_TRANSFORM_COLS = [
+    'encounter_inpatient',
+    'encounter_emergency',
+    'encounter_total',
+    'condition_count',
+    'healthcare_expenses',
+    'healthcare_coverage',
+]
+
+
 def scale_continuous(df: pd.DataFrame, target_col: str = 'DECEASED') -> pd.DataFrame:
-    """Scale continuous (non-binary) columns in-place."""
+    """Log-transform count/monetary cols then StandardScale all continuous cols."""
+    import numpy as np
     numeric = [c for c in df.select_dtypes(include='number').columns if c != target_col]
     binary  = [c for c in numeric if set(df[c].dropna().unique()) <= {0, 1}]
     continuous = [c for c in numeric if c not in binary]
-    scaler = StandardScaler()
+
     out = df.copy()
-    out[continuous] = scaler.fit_transform(df[continuous])
-    print(f'  Scaled {len(continuous)} continuous cols, {len(binary)} binary cols unchanged')
+    log_cols = [c for c in LOG_TRANSFORM_COLS if c in continuous]
+    for col in log_cols:
+        out[col] = np.log1p(out[col])
+
+    scaler = StandardScaler()
+    out[continuous] = scaler.fit_transform(out[continuous])
+    print(f'  Log-transformed {len(log_cols)} count cols, scaled {len(continuous)} continuous cols')
     return out
 
 

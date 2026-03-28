@@ -2,8 +2,8 @@
   "generator": "copula",
   "train_rows": 86905,
   "synth_rows": 86905,
-  "elapsed_seconds": 14.6,
+  "elapsed_seconds": 14.2,
   "target_col": "DECEASED",
-  "synth_positive_rate": 0.14607905183821415,
+  "synth_positive_rate": 0.14668891318105978,
   "real_positive_rate": 0.1945227547321788
 }

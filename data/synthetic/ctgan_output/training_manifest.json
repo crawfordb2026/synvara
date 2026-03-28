@@ -2,8 +2,8 @@
   "generator": "ctgan",
   "train_rows": 86905,
   "synth_rows": 86905,
-  "elapsed_seconds": 3502.4,
+  "elapsed_seconds": 3540.6,
   "target_col": "DECEASED",
-  "synth_positive_rate": 0.16275243081525803,
+  "synth_positive_rate": 0.19615672285829353,
   "real_positive_rate": 0.1945227547321788
 }

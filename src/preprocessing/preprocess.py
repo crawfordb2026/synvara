@@ -127,6 +127,18 @@ def split_dataset(
 # Preprocessing
 # ---------------------------------------------------------------------------
 
+# Count and monetary columns with heavy right tails — log1p transform before
+# StandardScaler so generators see a near-normal distribution instead of a spike
+# at zero with a long tail.
+LOG_TRANSFORM_COLS = [
+    "encounter_inpatient",
+    "encounter_emergency",
+    "encounter_total",
+    "condition_count",
+    "healthcare_expenses",
+    "healthcare_coverage",
+]
+
 
 def _is_binary_column(series: pd.Series) -> bool:
     """Returns True if a numeric column contains only 0 and 1 values."""
@@ -139,6 +151,9 @@ class DataPreprocessor:
     Fits a StandardScaler on continuous numeric columns only (excluding target
     and binary 0/1 columns, which should not be scaled).
     Applies the same transform to val/test.
+
+    For count/monetary columns with heavy right tails, applies log1p before
+    scaling so generators see a near-normal distribution.
     """
 
     def __init__(self, target_col: str = "Class"):
@@ -146,7 +161,14 @@ class DataPreprocessor:
         self.scaler = StandardScaler()
         self.continuous_cols: list[str] = []
         self.binary_cols: list[str] = []
+        self.log_transform_cols: list[str] = []
         self.feature_cols: list[str] = []  # all non-target numeric cols
+
+    def _apply_log_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        out = df.copy()
+        for col in self.log_transform_cols:
+            out[col] = np.log1p(out[col])
+        return out
 
     def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         numeric_cols = [
@@ -156,24 +178,28 @@ class DataPreprocessor:
         self.feature_cols = numeric_cols
         self.binary_cols = [c for c in numeric_cols if _is_binary_column(df[c])]
         self.continuous_cols = [c for c in numeric_cols if c not in self.binary_cols]
+        self.log_transform_cols = [c for c in LOG_TRANSFORM_COLS if c in self.continuous_cols]
 
-        out = df.copy()
+        out = self._apply_log_transform(df)
         if self.continuous_cols:
-            out[self.continuous_cols] = self.scaler.fit_transform(df[self.continuous_cols])
+            out[self.continuous_cols] = self.scaler.fit_transform(out[self.continuous_cols])
         print(f"  Scaling {len(self.continuous_cols)} continuous cols, "
               f"leaving {len(self.binary_cols)} binary cols unchanged.")
+        print(f"  Log-transforming {len(self.log_transform_cols)} count/monetary cols before scaling.")
         return out
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        out = df.copy()
+        out = self._apply_log_transform(df)
         if self.continuous_cols:
-            out[self.continuous_cols] = self.scaler.transform(df[self.continuous_cols])
+            out[self.continuous_cols] = self.scaler.transform(out[self.continuous_cols])
         return out
 
     def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
         if self.continuous_cols:
             out[self.continuous_cols] = self.scaler.inverse_transform(df[self.continuous_cols])
+        for col in self.log_transform_cols:
+            out[col] = np.expm1(out[col])
         return out
 
     def save_metadata(self, path: str | Path) -> None:
@@ -183,6 +209,7 @@ class DataPreprocessor:
             "feature_cols": self.feature_cols,
             "continuous_cols": self.continuous_cols,
             "binary_cols": self.binary_cols,
+            "log_transform_cols": self.log_transform_cols,
             "target_col": self.target_col,
             "scaler_mean": self.scaler.mean_.tolist() if self.continuous_cols else [],
             "scaler_scale": self.scaler.scale_.tolist() if self.continuous_cols else [],
