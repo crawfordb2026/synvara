@@ -1,0 +1,4 @@
+data/raw/**/*.csv filter=lfs diff=lfs merge=lfs -text
+data/raw/**/*.html filter=lfs diff=lfs merge=lfs -text
+data/synthetic/**/*.pkl filter=lfs diff=lfs merge=lfs -text
+data/synthetic/*.tar.gz filter=lfs diff=lfs merge=lfs -text

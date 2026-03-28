@@ -128,35 +128,52 @@ def split_dataset(
 # ---------------------------------------------------------------------------
 
 
+def _is_binary_column(series: pd.Series) -> bool:
+    """Returns True if a numeric column contains only 0 and 1 values."""
+    unique_vals = set(series.dropna().unique())
+    return unique_vals <= {0, 1}
+
+
 class DataPreprocessor:
     """
-    Fits a StandardScaler on numeric feature columns (excluding target).
+    Fits a StandardScaler on continuous numeric columns only (excluding target
+    and binary 0/1 columns, which should not be scaled).
     Applies the same transform to val/test.
     """
 
     def __init__(self, target_col: str = "Class"):
         self.target_col = target_col
         self.scaler = StandardScaler()
-        self.feature_cols: list[str] = []
+        self.continuous_cols: list[str] = []
+        self.binary_cols: list[str] = []
+        self.feature_cols: list[str] = []  # all non-target numeric cols
 
     def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        self.feature_cols = [
-            c
-            for c in df.select_dtypes(include=[np.number]).columns
+        numeric_cols = [
+            c for c in df.select_dtypes(include=[np.number]).columns
             if c != self.target_col
         ]
+        self.feature_cols = numeric_cols
+        self.binary_cols = [c for c in numeric_cols if _is_binary_column(df[c])]
+        self.continuous_cols = [c for c in numeric_cols if c not in self.binary_cols]
+
         out = df.copy()
-        out[self.feature_cols] = self.scaler.fit_transform(df[self.feature_cols])
+        if self.continuous_cols:
+            out[self.continuous_cols] = self.scaler.fit_transform(df[self.continuous_cols])
+        print(f"  Scaling {len(self.continuous_cols)} continuous cols, "
+              f"leaving {len(self.binary_cols)} binary cols unchanged.")
         return out
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
-        out[self.feature_cols] = self.scaler.transform(df[self.feature_cols])
+        if self.continuous_cols:
+            out[self.continuous_cols] = self.scaler.transform(df[self.continuous_cols])
         return out
 
     def inverse_transform(self, df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
-        out[self.feature_cols] = self.scaler.inverse_transform(df[self.feature_cols])
+        if self.continuous_cols:
+            out[self.continuous_cols] = self.scaler.inverse_transform(df[self.continuous_cols])
         return out
 
     def save_metadata(self, path: str | Path) -> None:
@@ -164,9 +181,11 @@ class DataPreprocessor:
         path.parent.mkdir(parents=True, exist_ok=True)
         meta = {
             "feature_cols": self.feature_cols,
+            "continuous_cols": self.continuous_cols,
+            "binary_cols": self.binary_cols,
             "target_col": self.target_col,
-            "scaler_mean": self.scaler.mean_.tolist(),
-            "scaler_scale": self.scaler.scale_.tolist(),
+            "scaler_mean": self.scaler.mean_.tolist() if self.continuous_cols else [],
+            "scaler_scale": self.scaler.scale_.tolist() if self.continuous_cols else [],
         }
         with open(path, "w") as f:
             json.dump(meta, f, indent=2)
@@ -179,20 +198,21 @@ class DataPreprocessor:
 
 
 def run_preprocessing(
-    raw_path: str | Path,
+    flat_path: str | Path,
     output_dir: str | Path,
-    target_col: str = "Class",
+    target_col: str = "DECEASED",
     train_frac: float = 0.70,
     val_frac: float = 0.15,
     random_state: int = 42,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, DataPreprocessor, dict]:
     """
-    End-to-end preprocessing. Returns (train, val, test, preprocessor, data_card).
+    End-to-end preprocessing from a pre-flattened CSV.
+    Returns (train, val, test, preprocessor, data_card).
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    df = load_raw(raw_path)
+    df = load_raw(flat_path)
     card = profile(df, target_col=target_col)
 
     train_raw, val_raw, test_raw = split_dataset(

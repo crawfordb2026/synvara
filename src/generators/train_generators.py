@@ -27,11 +27,27 @@ GENERATOR_NAMES = ["copula", "ctgan", "tvae"]
 
 
 def build_metadata(df: pd.DataFrame, target_col: str = "Class") -> SingleTableMetadata:
-    """Auto-detect column types and mark target as categorical."""
+    """Auto-detect column types, mark target and all binary columns as categorical.
+
+    SDV auto-detects 0/1 integer columns as 'numerical', which causes TVAE to
+    treat them as continuous and collapse low-frequency columns to a constant.
+    Marking them as 'categorical' forces SDV to use discrete sampling, preserving
+    the original class distributions.
+    """
     metadata = SingleTableMetadata()
     metadata.detect_from_dataframe(df)
-    # SDV should detect Class as integer; make sure it's treated as a discrete label
+
+    # Mark target as categorical
     metadata.update_column(column_name=target_col, sdtype="categorical")
+
+    # Mark all binary (0/1) columns as categorical to prevent generator collapse
+    binary_cols = [
+        c for c in df.select_dtypes(include="number").columns
+        if c != target_col and set(df[c].dropna().unique()) <= {0, 1}
+    ]
+    for col in binary_cols:
+        metadata.update_column(column_name=col, sdtype="categorical")
+
     return metadata
 
 

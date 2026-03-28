@@ -21,6 +21,9 @@ import json
 import time
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")  # non-interactive backend — no GUI windows needed
+
 import pandas as pd
 import yaml
 
@@ -34,7 +37,7 @@ def run(config_path: str = "configs/config.yaml") -> dict:
     cfg = load_config(config_path)
     t_start = time.time()
 
-    raw_path = cfg["data"]["raw_path"]
+    flat_path = cfg["data"]["flat_path"]
     processed_dir = Path(cfg["data"]["processed_dir"])
     synthetic_dir = Path(cfg["data"]["synthetic_dir"])
     target_col = cfg["data"]["target_column"]
@@ -54,7 +57,7 @@ def run(config_path: str = "configs/config.yaml") -> dict:
     from src.preprocessing.preprocess import run_preprocessing
 
     train, val, test, preprocessor, data_card = run_preprocessing(
-        raw_path=raw_path,
+        flat_path=flat_path,
         output_dir=processed_dir,
         target_col=target_col,
         train_frac=cfg["splits"]["train"],
@@ -63,23 +66,46 @@ def run(config_path: str = "configs/config.yaml") -> dict:
     )
 
     # ------------------------------------------------------------------
-    # Phase 2 & 3: Train generators + generate synthetic data
+    # Phase 2 & 3: Load synthetic datasets (pre-trained on SageMaker)
+    #              or train locally if CSVs don't exist yet
     # ------------------------------------------------------------------
     print("\n" + "=" * 70)
-    print("PHASE 2-3: TRAIN GENERATORS & GENERATE SYNTHETIC DATA")
+    print("PHASE 2-3: LOAD SYNTHETIC DATASETS")
     print("=" * 70)
 
-    from src.generators.train_generators import run_training
+    generator_names = ["copula", "ctgan", "tvae"]
+    pre_built = {
+        name: synthetic_dir / f"{name}_synthetic.csv"
+        for name in generator_names
+    }
+    all_exist = all(p.exists() for p in pre_built.values())
 
-    synth_datasets = run_training(
-        train_df=train,
-        model_dir=model_dir,
-        synthetic_dir=synthetic_dir,
-        target_col=target_col,
-        ctgan_epochs=cfg["generators"]["ctgan"]["epochs"],
-        tvae_epochs=cfg["generators"]["tvae"]["epochs"],
-        batch_size=cfg["generators"]["ctgan"]["batch_size"],
-    )
+    if all_exist:
+        synth_datasets = {}
+        # Identify binary columns from the real train set (excluding target)
+        binary_cols = [
+            c for c in train.select_dtypes(include="number").columns
+            if c != target_col and set(train[c].dropna().unique()) <= {0, 1}
+        ]
+        for name, path in pre_built.items():
+            df = pd.read_csv(path)
+            # Generators output fractional values for binary columns — snap back to 0/1
+            for col in binary_cols:
+                if col in df.columns:
+                    df[col] = df[col].round().clip(0, 1).astype(int)
+            synth_datasets[name] = df
+            print(f"  Loaded {name}: {len(df):,} rows  (snapped {len(binary_cols)} binary cols)")
+    else:
+        from src.generators.train_generators import run_training
+        synth_datasets = run_training(
+            train_df=train,
+            model_dir=model_dir,
+            synthetic_dir=synthetic_dir,
+            target_col=target_col,
+            ctgan_epochs=cfg["generators"]["ctgan"]["epochs"],
+            tvae_epochs=cfg["generators"]["tvae"]["epochs"],
+            batch_size=cfg["generators"]["ctgan"]["batch_size"],
+        )
 
     # ------------------------------------------------------------------
     # Phase 4: Realism evaluation

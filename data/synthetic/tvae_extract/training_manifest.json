@@ -1,0 +1,9 @@
+{
+  "generator": "tvae",
+  "train_rows": 86905,
+  "synth_rows": 86905,
+  "elapsed_seconds": 1671.0,
+  "target_col": "DECEASED",
+  "synth_positive_rate": 0.15361601749036305,
+  "real_positive_rate": 0.1945227547321788
+}

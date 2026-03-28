@@ -1,0 +1,4 @@
+generator,exact_dup_rate,nn_mean_distance,nn_median_distance,nn_frac_below_0.1,rare_memorisation_rate
+copula,0.0,3.211762227284155,3.1235500629677784,0.0,0.0
+ctgan,0.0,2.324710967755856,2.080072633559366,0.0,0.0
+tvae,0.0,1.6230019745698292,1.4763736814315238,0.0,0.0

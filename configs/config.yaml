@@ -1,9 +1,10 @@
 data:
-  dataset: "creditcard"
-  raw_path: "data/raw/creditcard.csv"
+  dataset: "synthea_covid19"
+  raw_dir: "data/raw/100k_synthea_covid19_csv"
+  flat_path: "data/processed/patient_features.csv"
   processed_dir: "data/processed"
   synthetic_dir: "data/synthetic"
-  target_column: "Class"
+  target_column: "DECEASED"
 
 splits:
   train: 0.70
