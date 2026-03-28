@@ -22,7 +22,6 @@ data/raw/*.csv
 data/raw/*.zip
 data/processed/*.csv
 data/processed/*.json
-data/synthetic/*.csv
 
 # Model artifacts
 outputs/models/*.pkl
