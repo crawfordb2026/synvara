@@ -15,7 +15,7 @@
       <div class="title-layout">
         <div class="title-eyebrow">Synthara</div>
         <h1>Can AI-generated patient<br>records replace real ones?</h1>
-        <p class="title-sub">A four-model benchmark for synthetic EHR generation —<br>trained on 124,150 COVID-19 patients, evaluated on realism, utility, and privacy.</p>
+        <p class="title-sub">Four generative models. 124,150 patients. Evaluated on realism, utility, and privacy.</p>
         <div class="title-models">
           <span>Gaussian Copula</span>
           <span class="sep">·</span>
@@ -34,8 +34,7 @@
         <div class="split-left">
           <div class="eyebrow">The Problem</div>
           <h2>Real patient data<br>can't be shared.</h2>
-          <p>HIPAA regulations, IRB restrictions, and hospital data sharing agreements lock away the most valuable medical datasets in the world — making it nearly impossible to train ML models on real EHR data outside of a single institution.</p>
-          <p>Synthetic data generation offers a way out. But only if the synthetic records are <em>actually</em> statistically faithful and useful.</p>
+          <p>HIPAA and IRB restrictions lock away the most valuable medical datasets in the world. Synthetic data offers a way out — but only if it's <em>actually</em> statistically faithful.</p>
         </div>
         <div class="split-right">
           <div class="big-contrast">
@@ -59,13 +58,13 @@
         <div class="split-left">
           <div class="eyebrow">The Dataset</div>
           <h2>Synthea COVID-19<br>EHR Records</h2>
-          <p>Synthea generates realistic synthetic patient records. We used the COVID-19 module, joining 8+ relational tables into a single flat feature matrix per patient.</p>
+          <p>8+ relational tables joined into one flat feature matrix per patient.</p>
           <div class="three-stats">
             <div class="big-stat"><span class="big-num">124k</span><span class="big-lbl">patients</span></div>
             <div class="big-stat"><span class="big-num">35</span><span class="big-lbl">features</span></div>
             <div class="big-stat"><span class="big-num">19.5%</span><span class="big-lbl">mortality rate</span></div>
           </div>
-          <p class="note">Target: <code>DECEASED</code> — predict patient death from demographics, conditions, encounters, and vitals.</p>
+          <p class="note">Target: <code>DECEASED</code> — predict death from demographics, conditions, encounters, and vitals.</p>
         </div>
         <div class="split-right">
           <div class="feature-list-visual">
@@ -89,22 +88,22 @@
             <div class="model-block">
               <div class="model-name">Gaussian Copula</div>
               <div class="model-type">Statistical baseline</div>
-              <div class="model-how">Fits marginal distributions per column, then models correlations via multivariate Gaussian. Closed-form, interpretable, trains in seconds.</div>
+              <div class="model-how">Fits marginals per column, models correlations via multivariate Gaussian. Trains in seconds.</div>
             </div>
             <div class="model-block">
               <div class="model-name">CTGAN</div>
               <div class="model-type">Conditional GAN</div>
-              <div class="model-how">Generator battles discriminator to produce realistic rows. Mode-specific normalization handles multi-modal distributions. 300 epochs.</div>
+              <div class="model-how">GAN — generator battles discriminator to produce realistic rows. 300 epochs.</div>
             </div>
             <div class="model-block">
               <div class="model-name">TVAE</div>
               <div class="model-type">Variational autoencoder</div>
-              <div class="model-how">Encodes rows into a latent space, decodes to produce synthetic samples. Good at capturing overall structure. 300 epochs.</div>
+              <div class="model-how">Encodes rows into a latent space, decodes to produce synthetic samples. 300 epochs.</div>
             </div>
             <div class="model-block featured">
               <div class="model-name">Tabular Diffusion</div>
               <div class="model-type">Custom DDPM — built from scratch</div>
-              <div class="model-how">Learns to reverse a 200-step Gaussian noising process. 3.34M param MLP denoiser with sinusoidal timestep embeddings and residual blocks.</div>
+              <div class="model-how">Reverses a 200-step Gaussian noising process. Custom 3.34M param MLP — built from scratch. 100 epochs.</div>
             </div>
           </div>
         </div>
@@ -121,32 +120,20 @@
           <div class="journey-col bad-col">
             <div class="journey-label">Run 1 — Failed</div>
             <div class="journey-item">Discriminator AUROC = 1.0 on all models — all data easily spotted as fake</div>
-            <div class="journey-fix">
-              <strong>Found:</strong> <code>str.contains(regex=True)</code> silently zeroed out 7 condition columns. "Body mass index 30+" treated as a regex pattern.
-            </div>
-            <div class="journey-fix">
-              <strong>Found:</strong> TVAE collapsed race/ethnicity columns to all-zero due to binary features treated as numerical.
-            </div>
+            <div class="journey-fix"><strong>Bug:</strong> <code>regex=True</code> default zeroed out 7 condition columns silently.</div>
+            <div class="journey-fix"><strong>Bug:</strong> TVAE collapsed binary columns to zero — binary features misclassified as numerical.</div>
           </div>
           <div class="journey-col mid-col">
             <div class="journey-label">Run 2 — Closer</div>
             <div class="journey-item">Discriminator still 1.0 — but metrics improved after regex fix</div>
-            <div class="journey-fix">
-              <strong>Found:</strong> <code>encounter_inpatient</code> KS = 0.677 — 90%+ of patients have zero inpatient visits. Zero-inflated distributions are a hard ceiling for all generators.
-            </div>
-            <div class="journey-fix">
-              <strong>Found:</strong> Synthetic DECEASED rate 14–16% vs real 19.5% — generators under-sample minority class.
-            </div>
+            <div class="journey-fix"><strong>Found:</strong> 90%+ of patients have zero inpatient visits — zero-inflated distributions are a hard ceiling for all generators.</div>
+            <div class="journey-fix"><strong>Found:</strong> Synthetic mortality rate 14–16% vs real 19.5% — generators under-sample the minority class.</div>
           </div>
           <div class="journey-col good-col">
             <div class="journey-label">Run 3 — Best results</div>
             <div class="journey-item">Applied all fixes + added Tabular Diffusion</div>
-            <div class="journey-fix">
-              <strong>Applied:</strong> <code>log1p</code> transform on 6 zero-inflated columns. Post-hoc class rebalancing to match real positive rate.
-            </div>
-            <div class="journey-fix">
-              <strong>Result:</strong> Diffusion KS 0.050, Wasserstein 0.034, utility AUROC 0.9906 vs real 0.9926.
-            </div>
+            <div class="journey-fix"><strong>Fix:</strong> <code>log1p</code> on 6 zero-inflated columns + post-hoc class rebalancing.</div>
+            <div class="journey-fix"><strong>Result:</strong> Diffusion AUROC 0.9906 vs real 0.9926.</div>
           </div>
         </div>
       </div>
@@ -197,7 +184,6 @@
       <div class="center-wide">
         <div class="eyebrow">ML Utility Evaluation</div>
         <h2>Train on synthetic.<br>Test on real patients.</h2>
-        <p class="subtitle-sm">If a classifier trained purely on synthetic data can predict outcomes on real held-out patients, the synthetic data carries genuine signal.</p>
         <div class="results-split">
           <div class="results-table-wrap">
             <table class="rtable">
@@ -239,11 +225,10 @@
         <div class="split-left">
           <div class="eyebrow">Privacy Analysis</div>
           <h2>Does it leak<br>real patients?</h2>
-          <p>Three independent checks run against the full training set for every generator.</p>
           <div class="privacy-checks">
-            <div class="pc pass"><span class="pc-icon">✓</span><div><strong>Zero exact duplicates</strong><br><span>No synthetic row is a verbatim copy of any training record.</span></div></div>
-            <div class="pc pass"><span class="pc-icon">✓</span><div><strong>No memorization</strong><br><span>Zero minority-class (deceased) records reproduced within distance 0.05.</span></div></div>
-            <div class="pc pass"><span class="pc-icon">✓</span><div><strong>Safe NN distances</strong><br><span>All nearest-neighbor distances well above the 0.1 danger threshold.</span></div></div>
+            <div class="pc pass"><span class="pc-icon">✓</span><div><strong>Zero exact duplicates</strong><br><span>Across all four generators.</span></div></div>
+            <div class="pc pass"><span class="pc-icon">✓</span><div><strong>No memorization</strong><br><span>Zero deceased patients reproduced within distance 0.05.</span></div></div>
+            <div class="pc pass"><span class="pc-icon">✓</span><div><strong>Safe NN distances</strong><br><span>All generators well above the 0.1 danger threshold.</span></div></div>
           </div>
         </div>
         <div class="split-right">
@@ -285,9 +270,9 @@
         <div class="eyebrow">Takeaways</div>
         <h2>What we learned.</h2>
         <div class="tk-list">
-          <div class="tk"><span class="tk-n">01</span><div><strong>Diffusion models are in a different class.</strong> The correlation structure distance of 0.503 vs 1.65–3.25 for SDV models isn't a marginal win — it's a fundamental architectural difference in how well the model captures inter-feature relationships.</div></div>
-          <div class="tk"><span class="tk-n">02</span><div><strong>Data quality dominated the first two runs.</strong> A single wrong default (<code>regex=True</code>) zeroed out 7 condition columns and invalidated everything. Clean data engineering mattered more than model choice until the third run.</div></div>
-          <div class="tk"><span class="tk-n">03</span><div><strong>Synthetic-only training reaches 99.8% of real-data performance.</strong> Tabular Diffusion synthetic records are good enough to replace real EHR data for downstream ML — and can be shared freely with zero HIPAA risk.</div></div>
+          <div class="tk"><span class="tk-n">01</span><div><strong>Diffusion models are in a different class.</strong> Correlation distance 0.503 vs 1.65–3.25 — not marginal, architectural.</div></div>
+          <div class="tk"><span class="tk-n">02</span><div><strong>Data quality dominated the first two runs.</strong> One wrong default (<code>regex=True</code>) zeroed 7 columns and invalidated everything. Engineering mattered more than model choice.</div></div>
+          <div class="tk"><span class="tk-n">03</span><div><strong>Synthetic-only training reaches 99.8% of real-data AUROC.</strong> Good enough to replace real EHR data for downstream ML — shareable with zero HIPAA risk.</div></div>
         </div>
       </div>
     </div>
