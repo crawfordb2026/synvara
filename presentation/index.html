@@ -86,22 +86,22 @@
         <div class="models-layout">
           <div class="model-row">
             <div class="model-block">
-              <div class="model-name">Gaussian Copula</div>
+              <div class="model-name"><span class="tip" data-tip="Fits a statistical distribution to each column independently, then uses a Gaussian copula to capture correlations between columns. No training loop — just math. Fast and interpretable but can't model complex non-linear relationships.">Gaussian Copula</span></div>
               <div class="model-type">Statistical baseline</div>
               <div class="model-how">Fits marginals per column, models correlations via multivariate Gaussian. Trains in seconds.</div>
             </div>
             <div class="model-block">
-              <div class="model-name">CTGAN</div>
+              <div class="model-name"><span class="tip" data-tip="Two neural networks compete: a generator tries to produce fake rows that fool a discriminator, which tries to tell real from fake. Over time the generator gets good enough that the discriminator can't tell the difference. Conditional means it can generate samples for a specific class.">CTGAN</span></div>
               <div class="model-type">Conditional GAN</div>
               <div class="model-how">GAN — generator battles discriminator to produce realistic rows. 300 epochs.</div>
             </div>
             <div class="model-block">
-              <div class="model-name">TVAE</div>
+              <div class="model-name"><span class="tip" data-tip="Compresses each row into a small latent vector (encoding), then learns to reconstruct it (decoding). To generate new data, sample random points from the latent space and decode them. The variational part forces the latent space to be smooth and continuous.">TVAE</span></div>
               <div class="model-type">Variational autoencoder</div>
               <div class="model-how">Encodes rows into a latent space, decodes to produce synthetic samples. 300 epochs.</div>
             </div>
             <div class="model-block featured">
-              <div class="model-name">Tabular Diffusion</div>
+              <div class="model-name"><span class="tip" data-tip="Gradually adds random noise to real data rows over 200 steps until they're pure noise, then trains a neural network to reverse that process. To generate new data, start from random noise and denoise 200 times. Same idea as image diffusion models like DALL-E — applied to tables.">Tabular Diffusion</span></div>
               <div class="model-type">Custom DDPM — built from scratch</div>
               <div class="model-how">Reverses a 200-step Gaussian noising process. Custom 3.34M param MLP — built from scratch. 100 epochs.</div>
             </div>
